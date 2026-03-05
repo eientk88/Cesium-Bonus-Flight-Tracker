@@ -289,7 +289,7 @@ html, body {
     miniViewer.clock.currentTime = clock.currentTime;
   });
 
-  // Overview in the main view, then begin tracking the plane
+  // Overview in the main view
   await mainViewer.camera.flyToBoundingSphere(routeSphere, {
     duration: 1.2,
     offset: new Cesium.HeadingPitchRange(
@@ -309,4 +309,5 @@ html, body {
 </script>
 
 </body>
+
 </html>
