@@ -1,0 +1,141 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CesiumJS Flight Tracker (GitHub Pages)</title>
+
+    <!-- CesiumJS via CDN -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      html, body, #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      .note {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 2;
+        background: rgba(0,0,0,0.55);
+        color: #fff;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        max-width: 520px;
+      }
+      .note code { color: #ffd27a; }
+    </style>
+  </head>
+
+  <body>
+    <div class="note">
+      Standalone CesiumJS Flight Tracker hosted on GitHub Pages.<br/>
+      Includes extra imagery overlays (night lights + seamarks).
+    </div>
+    <div id="cesiumContainer"></div>
+
+    <script type="module">
+      // 1) Cesium ion token (yours)
+      Cesium.Ion.defaultAccessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MWRhYjViYi1iNzdlLTRhMzctOGE3Ny0zNGRiM2Y0YWJiOWIiLCJpZCI6Mzk4MzIxLCJpYXQiOjE3NzI2NzgxODd9.6fcvQFvWG11Xo0F7xRS5xAks_0OL_VMEq8QRRP75sz_Q";
+
+      // 2) Viewer with World Terrain
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        terrain: Cesium.Terrain.fromWorldTerrain(),
+        animation: true,
+        timeline: true,
+        shouldAnimate: true,
+        baseLayerPicker: true
+      });
+
+      // 3) OSM Buildings
+      const osmBuildings = await Cesium.createOsmBuildingsAsync();
+      viewer.scene.primitives.add(osmBuildings);
+
+      // 4) Add at least one other layer (Imagery tutorial ideas)
+      const layers = viewer.imageryLayers;
+
+      // 4a) Night lights overlay (Cesium ion "Black Marble" asset)
+      // Blend it over the base imagery and boost brightness.
+      const blackMarbleLayer = await Cesium.ImageryLayer.fromProviderAsync(
+        Cesium.IonImageryProvider.fromAssetId(3812)
+      );
+      blackMarbleLayer.alpha = 0.45;
+      blackMarbleLayer.brightness = 1.8;
+      layers.add(blackMarbleLayer);
+
+      // 4b) Nautical seamarks overlay (public tile service)
+      // Nice extra contextual layer (buoys, beacons, etc.)
+      const seamarksProvider = new Cesium.UrlTemplateImageryProvider({
+        url: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+        credit: "© OpenSeaMap contributors"
+      });
+      const seamarksLayer = layers.addImageryProvider(seamarksProvider);
+      seamarksLayer.alpha = 0.75;
+
+      // 5) Clock + timeline
+      const start = Cesium.JulianDate.fromIso8601("2026-03-04T18:00:00Z");
+      const stop  = Cesium.JulianDate.fromIso8601("2026-03-04T22:00:00Z");
+
+      viewer.clock.startTime = start.clone();
+      viewer.clock.stopTime = stop.clone();
+      viewer.clock.currentTime = start.clone();
+      viewer.timeline.zoomTo(start, stop);
+      viewer.clock.multiplier = 80;
+      viewer.clock.shouldAnimate = true;
+
+      // 6) Sampled flight path (self-contained demo data)
+      const position = new Cesium.SampledPositionProperty();
+      const samples = [
+        // time, lon, lat, height(m)
+        ["2026-03-04T18:00:00Z", -122.3790, 37.6213,   0],
+        ["2026-03-04T18:15:00Z", -123.2000, 38.3000, 5000],
+        ["2026-03-04T18:45:00Z", -125.5000, 39.6000,10500],
+        ["2026-03-04T19:30:00Z", -132.0000, 42.5000,11000],
+        ["2026-03-04T20:30:00Z", -145.0000, 48.0000,11000],
+        ["2026-03-04T21:20:00Z", -160.0000, 54.0000,11000],
+        ["2026-03-04T22:00:00Z",   12.6500, 55.6180,   0]
+      ];
+
+      for (const [iso, lon, lat, h] of samples) {
+        const t = Cesium.JulianDate.fromIso8601(iso);
+        position.addSample(t, Cesium.Cartesian3.fromDegrees(lon, lat, h));
+      }
+
+      // 7) Plane entity + path + orientation
+      const plane = viewer.entities.add({
+        name: "Demo Flight",
+        availability: new Cesium.TimeIntervalCollection([
+          new Cesium.TimeInterval({ start, stop })
+        ]),
+        position,
+        orientation: new Cesium.VelocityOrientationProperty(position),
+
+        // Billboard icon (simple + self-contained)
+        billboard: {
+          image:
+            "https://upload.wikimedia.org/wikipedia/commons/3/3c/Map_marker_icon_%E2%80%93_Nicolas_Mollet_%E2%80%93_Airport_%E2%80%93_Transport_%E2%80%93_White.png",
+          width: 28,
+          height: 28,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+        },
+
+        path: new Cesium.PathGraphics({
+          width: 3,
+          leadTime: 0,
+          trailTime: 60 * 60 * 2
+        })
+      });
+
+      viewer.trackedEntity = plane;
+      viewer.flyTo(plane, { duration: 1.2 });
+    </script>
+  </body>
+</html>
