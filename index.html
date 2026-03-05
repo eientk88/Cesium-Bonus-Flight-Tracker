@@ -42,7 +42,7 @@
     <div id="cesiumContainer"></div>
 
     <script type="module">
-      // 1) Cesium ion token (yours)
+      // 1) Cesium ion token
       Cesium.Ion.defaultAccessToken =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MWRhYjViYi1iNzdlLTRhMzctOGE3Ny0zNGRiM2Y0YWJiOWIiLCJpZCI6Mzk4MzIxLCJpYXQiOjE3NzI2NzgxODd9.6fcvQFvWG11Xo0F7xRS5xAks_0OL_VMEq8QRRP75sz_Q";
 
@@ -59,11 +59,10 @@
       const osmBuildings = await Cesium.createOsmBuildingsAsync();
       viewer.scene.primitives.add(osmBuildings);
 
-      // 4) Add at least one other layer (Imagery tutorial ideas)
+      // 4) Add one other layer
       const layers = viewer.imageryLayers;
 
       // 4a) Night lights overlay (Cesium ion "Black Marble" asset)
-      // Blend it over the base imagery and boost brightness.
       const blackMarbleLayer = await Cesium.ImageryLayer.fromProviderAsync(
         Cesium.IonImageryProvider.fromAssetId(3812)
       );
@@ -72,7 +71,6 @@
       layers.add(blackMarbleLayer);
 
       // 4b) Nautical seamarks overlay (public tile service)
-      // Nice extra contextual layer (buoys, beacons, etc.)
       const seamarksProvider = new Cesium.UrlTemplateImageryProvider({
         url: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
         credit: "© OpenSeaMap contributors"
@@ -91,7 +89,7 @@
       viewer.clock.multiplier = 80;
       viewer.clock.shouldAnimate = true;
 
-      // 6) Sampled flight path (self-contained demo data)
+      // 6) Sampled flight path
       const position = new Cesium.SampledPositionProperty();
       const samples = [
         // time, lon, lat, height(m)
