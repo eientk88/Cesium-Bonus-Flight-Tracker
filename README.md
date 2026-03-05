@@ -5,7 +5,7 @@ https://eientk88.github.io/Cesium-Bonus-Flight-Tracker/
 
 ## Overview
 
-This project is a 3D flight visualization built with CesiumJS. It animates a flight route from PDX (Portland, Oregon) to Osaka, Japan on a real-time 3D globe using time-based position samples and a 3D aircraft model.
+This project is a flight visualization built with CesiumJS. It animates a flight route from PDX (Portland, Oregon) to Osaka, Japan on a real-time 3D globe using time-based position samples and a 3D aircraft model.
 
 The application is hosted as a static website on GitHub Pages.
 
