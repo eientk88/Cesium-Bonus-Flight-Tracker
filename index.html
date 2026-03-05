@@ -1,139 +1,312 @@
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>CesiumJS Flight Tracker (GitHub Pages)</title>
+<head>
+<meta charset="utf-8">
+<title>Cesium Flight Tracker (PDX → Osaka) — Split View</title>
 
-    <!-- CesiumJS via CDN -->
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Cesium.js"></script>
-    <link
-      href="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Widgets/widgets.css"
-      rel="stylesheet"
-    />
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 
-    <style>
-      html, body, #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-      .note {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 2;
-        background: rgba(0,0,0,0.55);
-        color: #fff;
-        padding: 10px 12px;
-        border-radius: 10px;
-        font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        max-width: 520px;
-      }
-      .note code { color: #ffd27a; }
-    </style>
-  </head>
+<style>
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+}
 
-  <body>
-    <div class="note">
-      Standalone CesiumJS Flight Tracker hosted on GitHub Pages.<br/>
-      Includes extra imagery overlays (night lights + seamarks).
-    </div>
-    <div id="cesiumContainer"></div>
+#mainContainer {
+  position: absolute;
+  inset: 0;
+}
 
-    <script type="module">
-      // 1) Cesium ion token
-      Cesium.Ion.defaultAccessToken =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MWRhYjViYi1iNzdlLTRhMzctOGE3Ny0zNGRiM2Y0YWJiOWIiLCJpZCI6Mzk4MzIxLCJpYXQiOjE3NzI2NzgxODd9.6fcvQFvWG11Xo0F7xRS5xAks_0OL_VMEq8QRRP75sz_Q";
+#miniContainer {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 360px;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.18);
+}
 
-      // 2) Viewer with World Terrain
-      const viewer = new Cesium.Viewer("cesiumContainer", {
-        terrain: Cesium.Terrain.fromWorldTerrain(),
-        animation: true,
-        timeline: true,
-        shouldAnimate: true,
-        baseLayerPicker: true
-      });
+.info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 13px;
+  z-index: 10;
+  max-width: 860px;
+}
 
-      // 3) OSM Buildings
-      const osmBuildings = await Cesium.createOsmBuildingsAsync();
-      viewer.scene.primitives.add(osmBuildings);
+.badge {
+  position: absolute;
+  right: 14px;
+  bottom: 244px;
+  z-index: 11;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+</style>
+</head>
 
-      // 4) Add one other layer
-      const layers = viewer.imageryLayers;
+<body>
+<div class="info">
+  CesiumJS Flight Tracker — <b>PDX → Osaka (KIX)</b> — <b>Split View</b><br>
+</div>
 
-      // 4a) Night lights overlay (Cesium ion "Black Marble" asset)
-      const blackMarbleLayer = await Cesium.ImageryLayer.fromProviderAsync(
-        Cesium.IonImageryProvider.fromAssetId(3812)
-      );
-      blackMarbleLayer.alpha = 0.45;
-      blackMarbleLayer.brightness = 1.8;
-      layers.add(blackMarbleLayer);
+<div class="badge">Overview</div>
 
-      // 4b) Nautical seamarks overlay (public tile service)
-      const seamarksProvider = new Cesium.UrlTemplateImageryProvider({
+<div id="mainContainer"></div>
+<div id="miniContainer"></div>
+
+<script>
+(async function () {
+  // Cesium ion token
+  Cesium.Ion.defaultAccessToken =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmMTQ5NTcwMS0xMjdmLTRkOGQtYjc5OC0zZjUyMTNiYjJjYjMiLCJpZCI6Mzk4MzIxLCJpYXQiOjE3NzI2ODAxMjV9.jipcFTmbMCtbyGBeN-yvVh85yZTyT0neR-hYpthNzMo";
+
+  // ---- Shared flight data ----
+  const startIso = "2026-03-04T18:00:00Z";
+  const stopIso  = "2026-03-05T02:30:00Z";
+
+  const samples = [
+    ["2026-03-04T18:00:00Z", -122.5951, 45.5898,     0],  // PDX
+    ["2026-03-04T18:30:00Z", -125.0000, 46.0000,  6000],
+    ["2026-03-04T19:30:00Z", -135.0000, 48.0000, 10500],
+    ["2026-03-04T20:30:00Z", -150.0000, 50.0000, 11000],
+    ["2026-03-04T21:30:00Z", -170.0000, 52.0000, 11000],
+    ["2026-03-04T22:30:00Z",  170.0000, 53.0000, 11000], // dateline
+    ["2026-03-04T23:30:00Z",  155.0000, 50.0000, 11000],
+    ["2026-03-05T00:30:00Z",  140.0000, 44.0000, 11000],
+    ["2026-03-05T01:30:00Z",  130.0000, 38.0000,  9000],
+    ["2026-03-05T02:30:00Z",  135.2000, 34.4300,     0]  // Osaka (KIX vicinity)
+  ];
+
+  function buildSampledPositionProperty() {
+    const position = new Cesium.SampledPositionProperty();
+    for (const [iso, lon, lat, h] of samples) {
+      const t = Cesium.JulianDate.fromIso8601(iso);
+      position.addSample(t, Cesium.Cartesian3.fromDegrees(lon, lat, h));
+    }
+    position.setInterpolationOptions({
+      interpolationDegree: 2,
+      interpolationAlgorithm: Cesium.HermitePolynomialApproximation
+    });
+    return position;
+  }
+
+  const start = Cesium.JulianDate.fromIso8601(startIso);
+  const stop  = Cesium.JulianDate.fromIso8601(stopIso);
+
+  // Bounding sphere for the whole route
+  const cartPoints = samples.map(([_, lon, lat, h]) => Cesium.Cartesian3.fromDegrees(lon, lat, h));
+  const routeSphere = Cesium.BoundingSphere.fromPoints(cartPoints);
+
+  // ---- Main viewer ----
+  const mainViewer = new Cesium.Viewer("mainContainer", {
+    terrain: Cesium.Terrain.fromWorldTerrain(),
+    animation: true,
+    timeline: true,
+    shouldAnimate: true
+  });
+
+  // Extra layers
+  try {
+    const night = mainViewer.imageryLayers.addImageryProvider(
+      new Cesium.IonImageryProvider({ assetId: 3812 })
+    );
+    night.alpha = 0.4;
+    night.brightness = 1.8;
+  } catch (e) {
+    console.error("Main: Black Marble overlay failed:", e);
+  }
+
+  try {
+    const seamarks = mainViewer.imageryLayers.addImageryProvider(
+      new Cesium.UrlTemplateImageryProvider({
         url: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
-        credit: "© OpenSeaMap contributors"
-      });
-      const seamarksLayer = layers.addImageryProvider(seamarksProvider);
-      seamarksLayer.alpha = 0.75;
+        credit: "© OpenSeaMap"
+      })
+    );
+    seamarks.alpha = 0.7;
+  } catch (e) {
+    console.error("Main: OpenSeaMap overlay failed:", e);
+  }
 
-      // 5) Clock + timeline
-      const start = Cesium.JulianDate.fromIso8601("2026-03-04T18:00:00Z");
-      const stop  = Cesium.JulianDate.fromIso8601("2026-03-04T22:00:00Z");
+  // Buildings
+  try {
+    const buildings = await Cesium.createOsmBuildingsAsync();
+    mainViewer.scene.primitives.add(buildings);
+  } catch (e) {
+    console.error("Main: OSM Buildings failed:", e);
+  }
 
-      viewer.clock.startTime = start.clone();
-      viewer.clock.stopTime = stop.clone();
-      viewer.clock.currentTime = start.clone();
-      viewer.timeline.zoomTo(start, stop);
-      viewer.clock.multiplier = 80;
-      viewer.clock.shouldAnimate = true;
+  // Clock / timeline
+  mainViewer.clock.startTime = start.clone();
+  mainViewer.clock.stopTime = stop.clone();
+  mainViewer.clock.currentTime = start.clone();
+  mainViewer.timeline.zoomTo(start, stop);
+  mainViewer.clock.multiplier = 20;
+  mainViewer.clock.shouldAnimate = true;
 
-      // 6) Sampled flight path
-      const position = new Cesium.SampledPositionProperty();
-      const samples = [
-        // time, lon, lat, height(m)
-        ["2026-03-04T18:00:00Z", -122.3790, 37.6213,   0],
-        ["2026-03-04T18:15:00Z", -123.2000, 38.3000, 5000],
-        ["2026-03-04T18:45:00Z", -125.5000, 39.6000,10500],
-        ["2026-03-04T19:30:00Z", -132.0000, 42.5000,11000],
-        ["2026-03-04T20:30:00Z", -145.0000, 48.0000,11000],
-        ["2026-03-04T21:20:00Z", -160.0000, 54.0000,11000],
-        ["2026-03-04T22:00:00Z",   12.6500, 55.6180,   0]
-      ];
+  // Plane model
+  const AIRPLANE_ASSET_ID = 1129109;
+  let modelUri = null;
+  try {
+    modelUri = await Cesium.IonResource.fromAssetId(AIRPLANE_ASSET_ID);
+  } catch (e) {
+    console.error("Main: airplane model failed to load:", e);
+  }
 
-      for (const [iso, lon, lat, h] of samples) {
-        const t = Cesium.JulianDate.fromIso8601(iso);
-        position.addSample(t, Cesium.Cartesian3.fromDegrees(lon, lat, h));
-      }
+  const mainPosition = buildSampledPositionProperty();
 
-      // 7) Plane entity + path + orientation
-      const plane = viewer.entities.add({
-        name: "Demo Flight",
-        availability: new Cesium.TimeIntervalCollection([
-          new Cesium.TimeInterval({ start, stop })
-        ]),
-        position,
-        orientation: new Cesium.VelocityOrientationProperty(position),
+  const mainPlane = mainViewer.entities.add({
+    name: "PDX → Osaka",
+    availability: new Cesium.TimeIntervalCollection([ new Cesium.TimeInterval({ start, stop }) ]),
+    position: mainPosition,
+    orientation: new Cesium.VelocityOrientationProperty(mainPosition),
+    model: modelUri ? {
+      uri: modelUri,
+      minimumPixelSize: 80,
+      maximumScale: 2000,
+      clampAnimations: true
+    } : undefined,
+    point: modelUri ? undefined : {
+      pixelSize: 12,
+      color: Cesium.Color.CYAN,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2
+    },
+    path: new Cesium.PathGraphics({
+      width: 4,
+      leadTime: 0,
+      trailTime: 60 * 60 * 6,
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.2,
+        color: Cesium.Color.YELLOW
+      })
+    })
+  });
 
-        // Billboard icon (simple + self-contained)
-        billboard: {
-          image:
-            "https://upload.wikimedia.org/wikipedia/commons/3/3c/Map_marker_icon_%E2%80%93_Nicolas_Mollet_%E2%80%93_Airport_%E2%80%93_Transport_%E2%80%93_White.png",
-          width: 28,
-          height: 28,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM
-        },
+  // ---- Mini viewer (overview) ----
+  const miniViewer = new Cesium.Viewer("miniContainer", {
+    terrain: Cesium.Terrain.fromWorldTerrain(),
+    animation: false,
+    timeline: false,
+    shouldAnimate: false,
+    navigationHelpButton: false,
+    fullscreenButton: false,
+    sceneModePicker: false,
+    homeButton: false,
+    geocoder: false,
+    baseLayerPicker: false,
+    infoBox: false,
+    selectionIndicator: false
+  });
 
-        path: new Cesium.PathGraphics({
-          width: 3,
-          leadTime: 0,
-          trailTime: 60 * 60 * 2
-        })
-      });
+  // Mini-map
+  miniViewer.scene.screenSpaceCameraController.enableRotate = false;
+  miniViewer.scene.screenSpaceCameraController.enableTilt = false;
 
-      viewer.trackedEntity = plane;
-      viewer.flyTo(plane, { duration: 1.2 });
-    </script>
-  </body>
+  // Extra layers
+  try {
+    const night2 = miniViewer.imageryLayers.addImageryProvider(
+      new Cesium.IonImageryProvider({ assetId: 3812 })
+    );
+    night2.alpha = 0.35;
+    night2.brightness = 1.8;
+  } catch (e) {
+    console.error("Mini: Black Marble overlay failed:", e);
+  }
+
+  try {
+    const seamarks2 = miniViewer.imageryLayers.addImageryProvider(
+      new Cesium.UrlTemplateImageryProvider({
+        url: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+        credit: "© OpenSeaMap"
+      })
+    );
+    seamarks2.alpha = 0.6;
+  } catch (e) {
+    console.error("Mini: OpenSeaMap overlay failed:", e);
+  }
+
+  // Mini-viewer
+  const miniPosition = buildSampledPositionProperty();
+
+  const miniPlane = miniViewer.entities.add({
+    name: "Overview plane marker",
+    availability: new Cesium.TimeIntervalCollection([ new Cesium.TimeInterval({ start, stop }) ]),
+    position: miniPosition,
+    point: {
+      pixelSize: 8,
+      color: Cesium.Color.YELLOW,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2
+    },
+    path: new Cesium.PathGraphics({
+      width: 2,
+      leadTime: 0,
+      trailTime: 60 * 60 * 24,
+      material: Cesium.Color.YELLOW.withAlpha(0.9)
+    })
+  });
+
+  // Set mini camera to show the whole route
+  await miniViewer.camera.flyToBoundingSphere(routeSphere, {
+    duration: 0.8,
+    offset: new Cesium.HeadingPitchRange(
+      0,
+      Cesium.Math.toRadians(-75),
+      routeSphere.radius * 10.
+    )
+  });
+
+  // Sync mini clock to main clock
+  miniViewer.clock.startTime = start.clone();
+  miniViewer.clock.stopTime = stop.clone();
+  miniViewer.clock.currentTime = start.clone();
+  miniViewer.clock.multiplier = mainViewer.clock.multiplier;
+  miniViewer.clock.shouldAnimate = true;
+
+  // Keep mini viewer updating when main clock updates
+  mainViewer.clock.onTick.addEventListener(function (clock) {
+    miniViewer.clock.currentTime = clock.currentTime;
+  });
+
+  // Overview in the main view, then begin tracking the plane
+  await mainViewer.camera.flyToBoundingSphere(routeSphere, {
+    duration: 1.2,
+    offset: new Cesium.HeadingPitchRange(
+      0,
+      Cesium.Math.toRadians(-55),
+      routeSphere.radius * 4.5
+    )
+  });
+
+  // Track the plane
+  setTimeout(() => {
+    mainViewer.trackedEntity = mainPlane;
+  }, 1200);
+
+  console.log("Split view initialized.");
+})();
+</script>
+
+</body>
 </html>
